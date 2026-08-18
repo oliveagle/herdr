@@ -12,7 +12,7 @@ use self::tokens::{ResolvedToken, ResolvedTokenKind, SpaceTokenContext};
 use super::scrollbar::{render_scrollbar, should_show_scrollbar};
 use super::status::{state_dot, state_label, state_label_color};
 use super::text::{display_width, display_width_u16, truncate_end};
-use crate::app::state::{AgentPanelSort, Palette};
+use crate::app::state::{AgentPanelSort, Palette, SpacesSort};
 use crate::app::{AppState, Mode};
 use crate::detect::AgentState;
 use crate::terminal::TerminalRuntimeRegistry;
@@ -86,21 +86,32 @@ fn agent_panel_sort_label(sort: AgentPanelSort) -> &'static str {
 }
 
 pub(crate) fn agent_panel_toggle_rect(area: Rect, sort: AgentPanelSort) -> Rect {
-    agent_panel_header_label_rect(area, agent_panel_sort_label(sort))
+    agent_panel_header_label_rect(area, agent_panel_sort_label(sort), 1)
 }
 
-fn agent_panel_header_label_rect(area: Rect, label: &str) -> Rect {
-    if area.width == 0 || area.height < 2 {
+fn agent_panel_header_label_rect(area: Rect, label: &str, row_offset: u16) -> Rect {
+    if area.width == 0 || area.height <= row_offset {
         return Rect::default();
     }
 
     let width = display_width_u16(label).min(area.width);
     Rect::new(
         area.x + area.width.saturating_sub(width),
-        area.y + 1,
+        area.y + row_offset,
         width,
         1,
     )
+}
+
+fn spaces_sort_label(sort: SpacesSort) -> &'static str {
+    match sort {
+        SpacesSort::Manual => "manual",
+        SpacesSort::Priority => "priority",
+    }
+}
+
+pub(crate) fn spaces_sort_toggle_rect(area: Rect, sort: SpacesSort) -> Rect {
+    agent_panel_header_label_rect(area, spaces_sort_label(sort), 0)
 }
 
 fn active_agent_view_label(app: &AppState) -> Option<&str> {
@@ -248,6 +259,28 @@ fn workspace_attention_priority(state: AgentState, seen: bool) -> u8 {
     }
 }
 
+fn workspace_priority_rank(app: &AppState, ws_idx: usize) -> u8 {
+    let Some(ws) = app.workspaces.get(ws_idx) else {
+        return 0;
+    };
+    let (state, seen) = ws.aggregate_state(&app.terminals);
+    workspace_attention_priority(state, seen)
+}
+
+pub(crate) fn workspace_index_order(app: &AppState) -> Vec<usize> {
+    if matches!(app.spaces_sort, SpacesSort::Priority) {
+        let mut order = (0..app.workspaces.len()).collect::<Vec<_>>();
+        order.sort_by(|&a, &b| {
+            workspace_priority_rank(app, b)
+                .cmp(&workspace_priority_rank(app, a))
+                .then(a.cmp(&b))
+        });
+        order
+    } else {
+        (0..app.workspaces.len()).collect()
+    }
+}
+
 fn space_aggregate_state(app: &AppState, key: &str) -> (AgentState, bool) {
     app.workspaces
         .iter()
@@ -373,7 +406,9 @@ fn workspace_list_entries_inner(app: &AppState, force_expanded: bool) -> Vec<Wor
 
     let mut emitted_groups = std::collections::HashSet::<String>::new();
     let mut entries = Vec::new();
-    for (ws_idx, ws) in app.workspaces.iter().enumerate() {
+    let order = workspace_index_order(app);
+    for ws_idx in order {
+        let ws = &app.workspaces[ws_idx];
         let Some(space) = ws
             .worktree_space()
             .filter(|space| grouped_keys.contains(&space.key))
@@ -1209,6 +1244,18 @@ fn render_workspace_list(
             )])),
             Rect::new(area.x, area.y, area.width, 1),
         );
+        let sort_label = spaces_sort_label(app.spaces_sort);
+        let sort_rect = spaces_sort_toggle_rect(area, app.spaces_sort);
+        if sort_rect != Rect::default() {
+            frame.render_widget(
+                Paragraph::new(Span::styled(
+                    sort_label,
+                    Style::default().fg(p.overlay0).add_modifier(Modifier::BOLD),
+                ))
+                .alignment(Alignment::Right),
+                sort_rect,
+            );
+        }
     }
 
     let metrics = workspace_list_scroll_metrics(app, area);
@@ -1428,7 +1475,7 @@ fn render_agent_detail(
     );
     let control_label = active_agent_view_label(app)
         .unwrap_or_else(|| agent_panel_sort_label(app.agent_panel_sort));
-    let toggle_rect = agent_panel_header_label_rect(area, control_label);
+    let toggle_rect = agent_panel_header_label_rect(area, control_label, 1);
     if toggle_rect != Rect::default() {
         let color = if app.agent_view_override.is_some() {
             p.accent

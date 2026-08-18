@@ -242,6 +242,13 @@ fn agent_panel_sort_from_config(
     }
 }
 
+fn spaces_sort_from_config(sort: crate::config::SpacesSortConfig) -> state::SpacesSort {
+    match sort {
+        crate::config::SpacesSortConfig::Manual => state::SpacesSort::Manual,
+        crate::config::SpacesSortConfig::Priority => state::SpacesSort::Priority,
+    }
+}
+
 /// Parse the configured agent name list into a deduplicated set of `Agent`
 /// values. Unknown agent names are silently dropped so a typo cannot disable
 /// other valid entries.
@@ -616,6 +623,7 @@ impl App {
             sidebar_collapsed_mode: config.ui.sidebar_collapsed_mode,
             sidebar_section_split,
             agent_panel_sort,
+            spaces_sort: spaces_sort_from_config(config.ui.spaces_sort),
             agent_view_override: None,
             sidebar_agents: config.ui.sidebar.agents.clone(),
             sidebar_spaces: config.ui.sidebar.spaces.clone(),
@@ -1446,6 +1454,7 @@ impl App {
                 self.state.tab_bar_position = config.ui.tab_bar_position;
                 self.state.agent_panel_sort =
                     agent_panel_sort_from_config(config.ui.agent_panel_sort);
+                self.state.spaces_sort = spaces_sort_from_config(config.ui.spaces_sort);
                 self.state.sidebar_agents = config.ui.sidebar.agents.clone();
                 self.state.sidebar_spaces = config.ui.sidebar.spaces.clone();
                 self.state.agent_panel_scroll = 0;

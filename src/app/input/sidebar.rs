@@ -326,8 +326,9 @@ impl AppState {
             return None;
         }
 
+        let order = crate::ui::workspace_index_order(self);
         let idx = (row - ws_area.y) as usize;
-        (idx < self.workspaces.len()).then_some(idx)
+        order.get(idx).copied()
     }
 
     pub(super) fn collapsed_agent_detail_target_at(
@@ -475,6 +476,23 @@ impl AppState {
             self.sidebar_section_split,
         );
         let rect = crate::ui::agent_panel_toggle_rect(detail_area, self.agent_panel_sort);
+        rect.width > 0
+            && col >= rect.x
+            && col < rect.x + rect.width
+            && row >= rect.y
+            && row < rect.y + rect.height
+    }
+
+    pub(super) fn on_spaces_sort_toggle(&self, col: u16, row: u16) -> bool {
+        if self.sidebar_collapsed {
+            return false;
+        }
+
+        let (ws_area, _) = crate::ui::expanded_sidebar_sections(
+            self.view.sidebar_rect,
+            self.sidebar_section_split,
+        );
+        let rect = crate::ui::spaces_sort_toggle_rect(ws_area, self.spaces_sort);
         rect.width > 0
             && col >= rect.x
             && col < rect.x + rect.width

@@ -106,6 +106,23 @@ impl AgentPanelSortConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SpacesSortConfig {
+    #[default]
+    Manual,
+    Priority,
+}
+
+impl SpacesSortConfig {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Manual => "manual",
+            Self::Priority => "priority",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HostCursorModeConfig {
@@ -826,6 +843,8 @@ pub struct UiConfig {
     pub tab_bar_position: TabBarPositionConfig,
     /// Agent sidebar ordering. Saved values are "spaces" or "priority". Default: "spaces".
     pub agent_panel_sort: AgentPanelSortConfig,
+    /// Spaces sidebar ordering. Saved values are "manual" or "priority". Default: "manual".
+    pub spaces_sort: SpacesSortConfig,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1029,6 +1048,7 @@ impl Default for UiConfig {
             hide_tab_bar_when_single_tab: false,
             tab_bar_position: TabBarPositionConfig::Top,
             agent_panel_sort: AgentPanelSortConfig::Spaces,
+            spaces_sort: SpacesSortConfig::Manual,
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),
