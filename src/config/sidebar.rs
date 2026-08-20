@@ -610,6 +610,7 @@ rows = [[{ token = "git_status", fg = "#ff00aa" }], [{ token = "$jj", bold = tru
             Agent::Antigravity,
             Agent::Cline,
             Agent::Omp,
+            Agent::DeepseekHarness,
             Agent::Mastracode,
             Agent::OpenCode,
             Agent::GithubCopilot,

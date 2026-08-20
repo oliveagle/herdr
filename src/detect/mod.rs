@@ -50,6 +50,7 @@ pub enum Agent {
     Antigravity,
     Cline,
     Omp,
+    DeepseekHarness,
     Mastracode,
     OpenCode,
     GithubCopilot,
@@ -65,7 +66,7 @@ pub enum Agent {
 }
 
 impl Agent {
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::Pi,
         Self::Claude,
         Self::Codex,
@@ -75,6 +76,7 @@ impl Agent {
         Self::Antigravity,
         Self::Cline,
         Self::Omp,
+        Self::DeepseekHarness,
         Self::Mastracode,
         Self::OpenCode,
         Self::GithubCopilot,
@@ -123,6 +125,7 @@ pub fn agent_label(agent: Agent) -> &'static str {
         Agent::Antigravity => "agy",
         Agent::Cline => "cline",
         Agent::Omp => "omp",
+        Agent::DeepseekHarness => "deepseek-harness",
         Agent::Mastracode => "mastracode",
         Agent::OpenCode => "opencode",
         Agent::GithubCopilot => "copilot",
@@ -145,6 +148,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
         Agent::Codex => "codex",
         Agent::Gemini => "gemini",
         Agent::Cursor => "cursor-agent",
+        Agent::DeepseekHarness => "dsh",
         Agent::Devin => "devin",
         Agent::Antigravity => "agy",
         Agent::Cline => "cline",
@@ -185,6 +189,7 @@ fn lookup_agent(name: &str) -> Option<Agent> {
         "agy" | "antigravity" | "antigravity-cli" => Some(Agent::Antigravity),
         "cline" => Some(Agent::Cline),
         "omp" => Some(Agent::Omp),
+        "deepseek-harness" | "dsh" | "ds2" => Some(Agent::DeepseekHarness),
         "mastracode" | "mastra-code" | "mastra code" => Some(Agent::Mastracode),
         "opencode" | "opencode2" | "open-code" => Some(Agent::OpenCode),
         "copilot" | "github-copilot" | "ghcs" => Some(Agent::GithubCopilot),
