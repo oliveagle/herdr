@@ -543,7 +543,8 @@ impl ClientShellState {
         let collapsed_groups = self
             .collapsed_groups_for_endpoint(&self.active_endpoint_id)
             .unwrap_or(&empty_collapsed_groups);
-        let entries = render::workspace_entries(snapshot, collapsed_groups);
+        let entries =
+            render::workspace_entries(snapshot, collapsed_groups, self.config.spaces_sort);
         let last_hit = self
             .hits
             .workspaces
@@ -2034,6 +2035,22 @@ impl ClientShellState {
                     self.config.agent_panel_sort = sort;
                     self.agent_panel_sort_manual = true;
                     self.agent_scroll = 0;
+                    self.persist_chrome_preferences(outcome);
+                    outcome.repaint = true;
+                    return;
+                }
+                if super::contains(self.hits.spaces_sort_toggle, point) {
+                    let sort = match self.config.spaces_sort {
+                        crate::config::SpacesSortConfig::Manual => {
+                            crate::config::SpacesSortConfig::Priority
+                        }
+                        crate::config::SpacesSortConfig::Priority => {
+                            crate::config::SpacesSortConfig::Manual
+                        }
+                    };
+                    self.config.spaces_sort = sort;
+                    self.spaces_sort_manual = true;
+                    self.workspace_scroll = 0;
                     self.persist_chrome_preferences(outcome);
                     outcome.repaint = true;
                     return;

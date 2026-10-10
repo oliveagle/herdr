@@ -1051,6 +1051,16 @@
           ]
         },
         {
+          "key": "ui.spaces_sort",
+          "type": "enum",
+          "default": "\"manual\"",
+          "description": "Spaces sidebar ordering. Saved values are \"manual\" or \"priority\"; \"priority\" sorts workspaces by agent attention.",
+          "values": [
+            "manual",
+            "priority"
+          ]
+        },
+        {
           "key": "ui.status_indicators",
           "type": "enum",
           "default": "\"dots\"",

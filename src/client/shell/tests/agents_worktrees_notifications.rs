@@ -1682,3 +1682,119 @@ fn semantic_notifications_use_client_policy_and_stable_navigation_targets() {
     assert!(state.visible_notification.is_none());
     assert_eq!(state.pending_notifications.len(), 1);
 }
+
+#[test]
+fn spaces_priority_sort_reorders_workspaces_and_manual_keeps_order() {
+    use crate::client::shell::sidebar::{workspace_entries, workspace_index_order};
+    use crate::config::SpacesSortConfig;
+
+    let mut snapshot = snapshot();
+    let mk = |workspace_id: &str, number: usize, status: AgentStatus| ClientShellWorkspace {
+        workspace_id: workspace_id.into(),
+        active_tab_id: format!("tab_{workspace_id}"),
+        new_workspace_cwd: "/repo".into(),
+        number,
+        label: workspace_id.into(),
+        custom_label: false,
+        branch: None,
+        git_ahead_behind: None,
+        tokens: Vec::new(),
+        worktree: None,
+        focused: false,
+        agent_status: status,
+    };
+    // Insert in "manual" order: working, idle, blocked, done, unknown.
+    snapshot.workspaces.clear();
+    snapshot
+        .workspaces
+        .push(mk("ws_working", 1, AgentStatus::Working));
+    snapshot
+        .workspaces
+        .push(mk("ws_idle", 2, AgentStatus::Idle));
+    snapshot
+        .workspaces
+        .push(mk("ws_blocked", 3, AgentStatus::Blocked));
+    snapshot
+        .workspaces
+        .push(mk("ws_done", 4, AgentStatus::Done));
+    snapshot
+        .workspaces
+        .push(mk("ws_unknown", 5, AgentStatus::Unknown));
+
+    // Manual keeps insertion order.
+    let manual = workspace_entries(&snapshot, &HashSet::new(), SpacesSortConfig::Manual);
+    let manual_ids = manual
+        .iter()
+        .map(|entry| snapshot.workspaces[entry.index].workspace_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        manual_ids,
+        [
+            "ws_working",
+            "ws_idle",
+            "ws_blocked",
+            "ws_done",
+            "ws_unknown"
+        ]
+    );
+    assert_eq!(
+        workspace_index_order(&snapshot, SpacesSortConfig::Manual),
+        vec![0, 1, 2, 3, 4]
+    );
+
+    // Priority orders by status_priority descending: blocked(4) > done(3) > working(2) > idle(1) > unknown(0).
+    let priority = workspace_entries(&snapshot, &HashSet::new(), SpacesSortConfig::Priority);
+    let priority_ids = priority
+        .iter()
+        .map(|entry| snapshot.workspaces[entry.index].workspace_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        priority_ids,
+        [
+            "ws_blocked",
+            "ws_done",
+            "ws_working",
+            "ws_idle",
+            "ws_unknown"
+        ]
+    );
+    assert_eq!(
+        workspace_index_order(&snapshot, SpacesSortConfig::Priority),
+        vec![2, 3, 0, 1, 4]
+    );
+}
+
+#[test]
+fn spaces_sort_toggle_is_clickable_and_persists() {
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    state.compose(106, 20).expect("composed frame");
+
+    // Default is manual.
+    assert_eq!(
+        state.config.spaces_sort,
+        crate::config::SpacesSortConfig::Manual
+    );
+    let toggle = state.hits.spaces_sort_toggle;
+    assert!(!toggle.is_empty());
+
+    // Click toggles to priority.
+    state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: toggle.x,
+        row: toggle.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    state.handle_raw_events(vec![RawInputEvent::Mouse(crossterm::event::MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: toggle.x,
+        row: toggle.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    assert_eq!(
+        state.config.spaces_sort,
+        crate::config::SpacesSortConfig::Priority
+    );
+    assert!(state.spaces_sort_manual);
+}

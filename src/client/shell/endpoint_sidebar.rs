@@ -121,7 +121,10 @@ pub(super) fn render_collapsed(
         let Some(snapshot) = endpoint.snapshot.as_deref() else {
             continue;
         };
-        for workspace in &snapshot.workspaces {
+        let workspace_iter = super::sidebar::workspace_index_order(snapshot, config.spaces_sort)
+            .into_iter()
+            .map(|index| &snapshot.workspaces[index]);
+        for workspace in workspace_iter {
             if skip > 0 {
                 skip -= 1;
                 continue;
@@ -283,7 +286,7 @@ pub(super) fn render_expanded(
             let collapsed_groups = collapsed_groups_for_endpoint(state, &endpoint.endpoint_id)
                 .unwrap_or(&empty_collapsed_groups);
             rows.extend(
-                super::sidebar::workspace_entries(snapshot, collapsed_groups)
+                super::sidebar::workspace_entries(snapshot, collapsed_groups, config.spaces_sort)
                     .into_iter()
                     .map(|entry| Row::Workspace {
                         endpoint: endpoint_index,

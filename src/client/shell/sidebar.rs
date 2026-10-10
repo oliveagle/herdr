@@ -57,11 +57,11 @@ pub(crate) fn render_collapsed_sidebar(
     let active_background = workspace_active_background(palette, selected_workspace_id.is_some());
     render_sidebar_background(buffer, area, palette);
     let (workspace_area, divider_y, detail_area) = collapsed_sidebar_sections(area);
-    for (index, workspace) in snapshot
-        .workspaces
-        .iter()
+    for (index, workspace) in workspace_index_order(snapshot, config.spaces_sort)
+        .into_iter()
         .take(workspace_area.height as usize)
         .enumerate()
+        .map(|(position, index)| (position, &snapshot.workspaces[index]))
     {
         let rect = Rect::new(
             workspace_area.x,
@@ -225,8 +225,34 @@ pub(crate) fn render_sidebar(
             .fg(palette.overlay0)
             .add_modifier(Modifier::BOLD),
     );
+    let sort_label = match config.spaces_sort {
+        crate::config::SpacesSortConfig::Manual => "manual",
+        crate::config::SpacesSortConfig::Priority => "priority",
+    };
+    let sort_width = display_width(sort_label).min(workspace_area.width);
+    let sort_rect = Rect::new(
+        workspace_area.right().saturating_sub(sort_width),
+        workspace_area.y,
+        sort_width,
+        1,
+    );
+    hits.spaces_sort_toggle = if config.mouse_capture {
+        sort_rect
+    } else {
+        Rect::default()
+    };
+    put_text(
+        buffer,
+        sort_rect.x,
+        sort_rect.y,
+        sort_rect.width,
+        sort_label,
+        Style::default()
+            .fg(palette.overlay0)
+            .add_modifier(Modifier::BOLD),
+    );
 
-    let entries = workspace_entries(snapshot, state.collapsed_groups);
+    let entries = workspace_entries(snapshot, state.collapsed_groups, config.spaces_sort);
     let body = Rect::new(
         workspace_area.x,
         workspace_area.y.saturating_add(WORKSPACE_HEADER_ROWS),
@@ -455,9 +481,29 @@ pub(crate) fn render_sidebar(
     );
 }
 
+pub(crate) fn workspace_priority_rank(workspace: &ClientShellWorkspace) -> u8 {
+    status_priority(workspace.agent_status)
+}
+
+pub(in crate::client::shell) fn workspace_index_order(
+    snapshot: &ClientShellSnapshot,
+    sort: crate::config::SpacesSortConfig,
+) -> Vec<usize> {
+    let mut order: Vec<usize> = (0..snapshot.workspaces.len()).collect();
+    if sort == crate::config::SpacesSortConfig::Priority {
+        order.sort_by(|&left, &right| {
+            workspace_priority_rank(&snapshot.workspaces[right])
+                .cmp(&workspace_priority_rank(&snapshot.workspaces[left]))
+                .then(left.cmp(&right))
+        });
+    }
+    order
+}
+
 pub(crate) fn workspace_entries(
     snapshot: &ClientShellSnapshot,
     collapsed_groups: &HashSet<String>,
+    sort: crate::config::SpacesSortConfig,
 ) -> Vec<WorkspaceEntry> {
     let mut members = HashMap::<&str, Vec<usize>>::new();
     for (index, workspace) in snapshot.workspaces.iter().enumerate() {
@@ -484,7 +530,8 @@ pub(crate) fn workspace_entries(
         .collect::<HashSet<_>>();
     let mut emitted = HashSet::<&str>::new();
     let mut entries = Vec::new();
-    for (index, workspace) in snapshot.workspaces.iter().enumerate() {
+    for index in workspace_index_order(snapshot, sort) {
+        let workspace = &snapshot.workspaces[index];
         let Some(worktree) = workspace
             .worktree
             .as_ref()
